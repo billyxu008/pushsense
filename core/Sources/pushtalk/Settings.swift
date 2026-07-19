@@ -64,6 +64,22 @@ enum PasteMode: String, CaseIterable {
     }
 }
 
+/// Overlay color theme. `dark` is the original Eclipse black pearl; `light` is a
+/// bright silver pearl that stands out on dark-mode apps.
+enum OverlayTheme: String, CaseIterable {
+    case dark, light
+
+    var title: String {
+        switch self {
+        case .dark: return "Dark (black pearl)"
+        case .light: return "Light (silver pearl)"
+        }
+    }
+
+    /// Value passed to the overlay's window.__setTheme bridge.
+    var jsName: String { rawValue }
+}
+
 final class AppSettings {
     static let shared = AppSettings()
     private let store = UserDefaults.standard
@@ -74,6 +90,7 @@ final class AppSettings {
         static let microphoneID = "microphoneID"
         static let pasteMode = "pasteMode"
         static let trailingSpace = "trailingSpace"
+        static let overlayTheme = "overlayTheme"
     }
 
     var hotkey: HotkeyPreset {
@@ -106,6 +123,10 @@ final class AppSettings {
     var trailingSpace: Bool {
         get { store.object(forKey: Key.trailingSpace) as? Bool ?? true }
         set { store.set(newValue, forKey: Key.trailingSpace) }
+    }
+    var overlayTheme: OverlayTheme {
+        get { OverlayTheme(rawValue: store.string(forKey: Key.overlayTheme) ?? "") ?? .dark }
+        set { store.set(newValue.rawValue, forKey: Key.overlayTheme) }
     }
 }
 

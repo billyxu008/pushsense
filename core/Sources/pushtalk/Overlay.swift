@@ -17,6 +17,7 @@ final class Overlay {
     private var followTimer: Timer?
     private var loaded = false
     private var pendingMode: String?
+    private var theme: String = "dark"
 
     init() {
         let rect = NSRect(x: 0, y: 0, width: size, height: size)
@@ -46,14 +47,22 @@ final class Overlay {
         }
         web.navigationDelegate = NavDelegate.shared
         NavDelegate.shared.onFinish = { [weak self] in
-            self?.loaded = true
-            if let m = self?.pendingMode { self?.js("window.__setMode('\(m)')") }
+            guard let self = self else { return }
+            self.loaded = true
+            self.js("window.__setTheme('\(self.theme)')")
+            if let m = self.pendingMode { self.js("window.__setMode('\(m)')") }
         }
         web.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
     }
 
     func setLevel(_ level: Float) {
         js("window.__setVolume(\(level))")
+    }
+
+    /// Set the overlay color theme ("dark" | "light"). Persists across shows.
+    func setTheme(_ name: String) {
+        theme = name
+        if loaded { js("window.__setTheme('\(name)')") }
     }
 
     func show(_ vis: Vis) {

@@ -43,6 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         RuntimeLog.write("model loaded; configuring hotkey")
         controller = ctl
         modelReady = true
+        overlay.setTheme(settings.overlayTheme.jsName)
         ctl.onStateChange = { [weak self] s in self?.onState(s) }
         ctl.onLevel = { [weak self] lvl in self?.overlay.setLevel(lvl) }
 
@@ -154,6 +155,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(submenuItem(title: "Paste mode: \(settings.pasteMode.rawValue)", items: PasteMode.allCases.map { mode in
             selectableItem(title: mode.title, selected: settings.pasteMode == mode, value: mode.rawValue, action: #selector(changePasteMode(_:)))
         }))
+        menu.addItem(submenuItem(title: "Overlay theme: \(settings.overlayTheme.rawValue)", items: OverlayTheme.allCases.map { theme in
+            selectableItem(title: theme.title, selected: settings.overlayTheme == theme, value: theme.rawValue, action: #selector(changeOverlayTheme(_:)))
+        }))
         let trailing = NSMenuItem(title: "Trailing space", action: #selector(toggleTrailingSpace(_:)), keyEquivalent: "")
         trailing.target = self
         trailing.state = settings.trailingSpace ? .on : .off
@@ -214,6 +218,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func toggleTrailingSpace(_ sender: NSMenuItem) {
         settings.trailingSpace.toggle()
+        rebuildMenu(status: "Ready — hold \(settings.hotkey.title)")
+    }
+
+    @objc private func changeOverlayTheme(_ sender: NSMenuItem) {
+        guard let rawValue = sender.representedObject as? String, let value = OverlayTheme(rawValue: rawValue) else { return }
+        settings.overlayTheme = value
+        overlay.setTheme(value.jsName)
         rebuildMenu(status: "Ready — hold \(settings.hotkey.title)")
     }
 

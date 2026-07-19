@@ -27,9 +27,25 @@ const CONFIG = {
   satelliteOrbitX: 1.45,
   satelliteOrbitY: 1.05,
   satelliteSpeed: 0.6,
-  rimGlow: 'rgba(255,255,255,.25)',
-  satelliteColor: 'rgba(230,235,255,.9)',
-  gradient: [[0,'#9aa0b8'],[0.35,'#3c4054'],[0.7,'#15161f'],[1,'#000000']],
+};
+
+/* Two palettes. `dark` = the original Eclipse Dark Chrome (black pearl).
+ * `light` = a bright silver-pearl that pops against dark-mode apps. */
+const THEMES = {
+  dark: {
+    rimGlow: 'rgba(255,255,255,.25)',
+    satelliteColor: 'rgba(230,235,255,.9)',
+    crescent: 'rgba(255,255,255,',           // + alpha + ')'
+    crescentMid: 'rgba(200,205,230,.25)',
+    gradient: [[0,'#9aa0b8'],[0.35,'#3c4054'],[0.7,'#15161f'],[1,'#000000']],
+  },
+  light: {
+    rimGlow: 'rgba(120,130,160,.45)',
+    satelliteColor: 'rgba(90,100,130,.95)',
+    crescent: 'rgba(255,255,255,',
+    crescentMid: 'rgba(255,255,255,.35)',
+    gradient: [[0,'#ffffff'],[0.4,'#eef0f6'],[0.75,'#c3c8d6'],[1,'#9aa0b4']],
+  },
 };
 
 function blobPoints(C, R, t, amp) {
@@ -58,7 +74,7 @@ function darkChromeGradient(ctx, C, R, t, stops) {
   return g;
 }
 
-function drawEclipseChrome(ctx, t, volume, mode) {
+function drawEclipseChrome(ctx, t, volume, mode, theme) {
   const cfg = CONFIG;
   const C = cfg.size / 2, R = cfg.blobRadius;
   const amp = cfg.morphAmp * (1 + volume * 2.0);
@@ -69,9 +85,9 @@ function drawEclipseChrome(ctx, t, volume, mode) {
   const pts = blobPoints(C, R, t * cfg.morphSpeed, amp);
   tracePath(ctx, pts);
   ctx.save();
-  ctx.shadowColor = cfg.rimGlow;
+  ctx.shadowColor = theme.rimGlow;
   ctx.shadowBlur = 16;
-  ctx.fillStyle = darkChromeGradient(ctx, C, R, t, cfg.gradient);
+  ctx.fillStyle = darkChromeGradient(ctx, C, R, t, theme.gradient);
   ctx.fill();
   ctx.restore();
 
@@ -85,9 +101,9 @@ function drawEclipseChrome(ctx, t, volume, mode) {
   const hy = C + R * 0.6 * Math.sin(ang);
   const cres = ctx.createRadialGradient(hx, hy, 2, hx, hy, R * 0.9);
   const a = cfg.crescentAlpha * (0.7 + 0.3 * volume);
-  cres.addColorStop(0,   `rgba(255,255,255,${a})`);
-  cres.addColorStop(0.4, 'rgba(200,205,230,.25)');
-  cres.addColorStop(1,   'rgba(255,255,255,0)');
+  cres.addColorStop(0,   theme.crescent + a + ')');
+  cres.addColorStop(0.4, theme.crescentMid);
+  cres.addColorStop(1,   theme.crescent + '0)');
   ctx.fillStyle = cres;
   ctx.fillRect(0, 0, ctxW, ctxW);
   ctx.restore();
@@ -98,9 +114,9 @@ function drawEclipseChrome(ctx, t, volume, mode) {
     const py = C + R * cfg.satelliteOrbitY * Math.sin(sa);
     const sr = 3.5 + 1.8 * Math.sin(sa * 3);
     ctx.save();
-    ctx.shadowColor = cfg.satelliteColor;
+    ctx.shadowColor = theme.satelliteColor;
     ctx.shadowBlur = 8;
-    ctx.fillStyle = cfg.satelliteColor;
+    ctx.fillStyle = theme.satelliteColor;
     ctx.beginPath();
     ctx.arc(px, py, Math.max(sr, 1), 0, TAU);
     ctx.fill();
@@ -109,16 +125,17 @@ function drawEclipseChrome(ctx, t, volume, mode) {
 }
 
 // ---- native bridge ----
-let targetVol = 0, vol = 0, mode = 'listening';
+let targetVol = 0, vol = 0, mode = 'listening', themeName = 'dark';
 window.__setVolume = (v) => { targetVol = Math.max(0, Math.min(1, v)); };
 window.__setMode = (m) => { mode = m; };
+window.__setTheme = (name) => { themeName = (name === 'light') ? 'light' : 'dark'; };
 
 const ctx = document.getElementById('c').getContext('2d');
 let t0 = performance.now();
 function loop(now) {
   const t = (now - t0) / 1000;
   vol += (targetVol - vol) * 0.25;   // smooth
-  drawEclipseChrome(ctx, t, vol, mode);
+  drawEclipseChrome(ctx, t, vol, mode, THEMES[themeName]);
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
