@@ -1,0 +1,9 @@
+.DS_Store
+
+# SwiftPM build output and locally packaged application
+core/.build/
+core/PushTalk.app/
+whisper-probe/.build/
+
+# Local runtime diagnostics
+/tmp/pushtalk-runtime.log

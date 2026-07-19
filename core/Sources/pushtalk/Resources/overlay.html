@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Eclipse Dark Chrome — Voice Indicator</title>
+<style>
+  html,body { margin:0; padding:0; background:transparent; overflow:hidden; width:100%; height:100%; }
+  #c { display:block; width:100%; height:100%; }
+</style>
+</head>
+<body>
+<canvas id="c" width="512" height="512"></canvas>
+<script>
+/* 月食暗铬 · 语音输入指示器
+ * 由原生层驱动：window.__setVolume(v 0..1) 传实时音量；
+ * window.__setMode('listening'|'transcribing'|'idle') 切状态。 */
+const TAU = Math.PI * 2;
+
+const CONFIG = {
+  size: 512,
+  blobRadius: 150,
+  morphSpeed: 1.0,
+  morphAmp: 0.06,
+  crescentSpeed: 2.0,
+  crescentAlpha: 0.9,
+  satelliteCount: 3,
+  satelliteOrbitX: 1.45,
+  satelliteOrbitY: 1.05,
+  satelliteSpeed: 0.6,
+  rimGlow: 'rgba(255,255,255,.25)',
+  satelliteColor: 'rgba(230,235,255,.9)',
+  gradient: [[0,'#9aa0b8'],[0.35,'#3c4054'],[0.7,'#15161f'],[1,'#000000']],
+};
+
+function blobPoints(C, R, t, amp) {
+  const pts = [], N = 140;
+  for (let k = 0; k < N; k++) {
+    const th = TAU * k / N;
+    const r = R * (1 + amp * Math.sin(3 * th + t * 3)
+                   + amp * 0.6 * Math.sin(5 * th - t * 2));
+    pts.push([C + r * Math.cos(th), C + r * Math.sin(th)]);
+  }
+  return pts;
+}
+
+function tracePath(ctx, pts) {
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (const p of pts) ctx.lineTo(p[0], p[1]);
+  ctx.closePath();
+}
+
+function darkChromeGradient(ctx, C, R, t, stops) {
+  const hx = C - R * 0.42 + R * 0.20 * Math.sin(t * 1.5);
+  const hy = C - R * 0.50 + R * 0.16 * Math.cos(t * 1.2);
+  const g = ctx.createRadialGradient(hx, hy, R * 0.06, C, C, R * 1.55);
+  for (const [pos, col] of stops) g.addColorStop(pos, col);
+  return g;
+}
+
+function drawEclipseChrome(ctx, t, volume, mode) {
+  const cfg = CONFIG;
+  const C = cfg.size / 2, R = cfg.blobRadius;
+  const amp = cfg.morphAmp * (1 + volume * 2.0);
+  const ctxW = cfg.size;
+
+  ctx.clearRect(0, 0, ctxW, ctxW);
+
+  const pts = blobPoints(C, R, t * cfg.morphSpeed, amp);
+  tracePath(ctx, pts);
+  ctx.save();
+  ctx.shadowColor = cfg.rimGlow;
+  ctx.shadowBlur = 16;
+  ctx.fillStyle = darkChromeGradient(ctx, C, R, t, cfg.gradient);
+  ctx.fill();
+  ctx.restore();
+
+  // crescent — spins faster while transcribing to read as "working"
+  ctx.save();
+  tracePath(ctx, pts);
+  ctx.clip();
+  const spinRate = (mode === 'transcribing') ? cfg.crescentSpeed * 2.4 : cfg.crescentSpeed;
+  const ang = t * spinRate;
+  const hx = C + R * 0.6 * Math.cos(ang);
+  const hy = C + R * 0.6 * Math.sin(ang);
+  const cres = ctx.createRadialGradient(hx, hy, 2, hx, hy, R * 0.9);
+  const a = cfg.crescentAlpha * (0.7 + 0.3 * volume);
+  cres.addColorStop(0,   `rgba(255,255,255,${a})`);
+  cres.addColorStop(0.4, 'rgba(200,205,230,.25)');
+  cres.addColorStop(1,   'rgba(255,255,255,0)');
+  ctx.fillStyle = cres;
+  ctx.fillRect(0, 0, ctxW, ctxW);
+  ctx.restore();
+
+  for (let i = 0; i < cfg.satelliteCount; i++) {
+    const sa = TAU * (i / cfg.satelliteCount) + t * cfg.satelliteSpeed * TAU * 0.16;
+    const px = C + R * cfg.satelliteOrbitX * Math.cos(sa);
+    const py = C + R * cfg.satelliteOrbitY * Math.sin(sa);
+    const sr = 3.5 + 1.8 * Math.sin(sa * 3);
+    ctx.save();
+    ctx.shadowColor = cfg.satelliteColor;
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = cfg.satelliteColor;
+    ctx.beginPath();
+    ctx.arc(px, py, Math.max(sr, 1), 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+// ---- native bridge ----
+let targetVol = 0, vol = 0, mode = 'listening';
+window.__setVolume = (v) => { targetVol = Math.max(0, Math.min(1, v)); };
+window.__setMode = (m) => { mode = m; };
+
+const ctx = document.getElementById('c').getContext('2d');
+let t0 = performance.now();
+function loop(now) {
+  const t = (now - t0) / 1000;
+  vol += (targetVol - vol) * 0.25;   // smooth
+  drawEclipseChrome(ctx, t, vol, mode);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
