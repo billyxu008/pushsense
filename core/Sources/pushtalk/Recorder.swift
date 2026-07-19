@@ -93,12 +93,18 @@ final class Recorder {
         guard let ch = outBuf.floatChannelData else { return }
         let n = Int(outBuf.frameLength)
         var peak: Float = 0
+        var sumSq: Float = 0
         for i in 0..<n {
             let s = ch[0][i]
             samples.append(s)
             let a = abs(s)
             if a > peak { peak = a }
+            sumSq += s * s
         }
-        onLevel?(min(1, peak * 1.5))
+        // Speech peaks are small (~0.05–0.2). Blend peak + RMS and amplify hard
+        // so the overlay clearly reacts to normal speaking volume.
+        let rms = n > 0 ? (sumSq / Float(n)).squareRoot() : 0
+        let level = min(1, (peak * 2.2 + rms * 6.0))
+        onLevel?(level)
     }
 }

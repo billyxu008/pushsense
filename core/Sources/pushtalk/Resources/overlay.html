@@ -76,8 +76,12 @@ function darkChromeGradient(ctx, C, R, t, stops) {
 
 function drawEclipseChrome(ctx, t, volume, mode, theme) {
   const cfg = CONFIG;
-  const C = cfg.size / 2, R = cfg.blobRadius;
-  const amp = cfg.morphAmp * (1 + volume * 2.0);
+  // Volume visibly scales the whole orb (grows when you speak) AND intensifies
+  // the surface morph — so the user clearly sees it's hearing them.
+  const scale = 0.45 + volume * 0.72;         // 0.45 (silence, small) → 1.17 (loud, big)
+  const R = cfg.blobRadius * scale;
+  const C = cfg.size / 2;
+  const amp = cfg.morphAmp * (1 + volume * 3.5);
   const ctxW = cfg.size;
 
   ctx.clearRect(0, 0, ctxW, ctxW);
