@@ -90,13 +90,25 @@ final class Controller {
         let language = settings.language.whisperCode
         let pasteMode = settings.pasteMode
         let trailingSpace = settings.trailingSpace
+        let outputMode = settings.outputMode
         RuntimeLog.write("recording stopped; pcmSamples=\(pcm.count)")
         setState(.transcribing)
         DispatchQueue.global().async { [weak self] in
             guard let self = self else { return }
             RuntimeLog.write("Whisper started")
-            let text = self.whisper.transcribe(pcm, language: language)
-            RuntimeLog.write("Whisper finished; characters=\(text.count)")
+            var text = self.whisper.transcribe(pcm, language: language)
+            RuntimeLog.write("Whisper RAW: \(text)")
+
+            // Optional AI reformat (local LLM) per output mode. Fails safe: on
+            // any error the original transcript is used.
+            if outputMode.usesAI && !text.isEmpty {
+                let model = self.settings.correctionModel
+                RuntimeLog.write("AI reformat mode=\(outputMode.rawValue) model=\(model.isEmpty ? "(default)" : model)")
+                let out = Corrector.process(text, systemPrompt: outputMode.systemPrompt, config: Corrector.config(model: model))
+                RuntimeLog.write("AI OUTPUT: \(out)")
+                text = out
+            }
+
             DispatchQueue.main.async {
                 if !text.isEmpty {
                     RuntimeLog.write("Injector posting text")

@@ -64,6 +64,59 @@ enum PasteMode: String, CaseIterable {
     }
 }
 
+/// How the transcript is post-processed. `raw` skips the LLM entirely (pure
+/// dictation). `smart` sends it to the local LLM, which understands the user's
+/// spoken intent (write an email, make a list, or just tidy the text) and
+/// produces ready-to-paste output — no manual mode picking.
+enum OutputMode: String, CaseIterable {
+    case raw, smart
+
+    var title: String {
+        switch self {
+        case .raw: return "Raw (dictation only)"
+        case .smart: return "Smart (AI understands intent)"
+        }
+    }
+
+    /// True if this mode needs the LLM.
+    var usesAI: Bool { self == .smart }
+
+    var systemPrompt: String {
+        switch self {
+        case .raw:
+            return ""
+        case .smart:
+            return """
+            You turn a user's spoken words into ready-to-paste text. The user \
+            speaks naturally and MAY include an instruction (e.g. "write an email \
+            to Ben saying…", "make a list of…", "fix this…") followed by content.
+
+            Decide what they want and produce it:
+            - Email request → a complete email in this exact order: greeting line \
+              to the named recipient, then body paragraphs, then a sign-off. Put \
+              a placeholder like [Your Name] ONLY on the final sign-off line — \
+              NEVER at the top or anywhere else.
+            - List request → a bullet list, one item per line starting with "- ".
+            - Note/tidy request → clean, well-punctuated prose.
+            - No instruction (plain dictation) → output exactly what they said, \
+              only fixing typos, casing, and punctuation. A misspelled English \
+              word is fixed to correct ENGLISH spelling, never translated.
+
+            CRITICAL — language:
+            - Match the language of the CONTENT, not the instruction. If the \
+              instruction is Chinese but the dictated content is English (e.g. \
+              「写邮件给Ben 内容是 hello how are you」), the email body stays \
+              ENGLISH.
+            - If the content is Chinese, output Chinese. Mixed stays mixed. \
+              NEVER translate any word to another language.
+            - Never drop the first word of the content.
+            - Output ONLY the final text to paste — no preamble like "Here is…", \
+              no stray placeholder before the greeting.
+            """
+        }
+    }
+}
+
 /// Overlay color theme. `dark` is the original Eclipse black pearl; `light` is a
 /// bright silver pearl that stands out on dark-mode apps.
 enum OverlayTheme: String, CaseIterable {
@@ -91,6 +144,8 @@ final class AppSettings {
         static let pasteMode = "pasteMode"
         static let trailingSpace = "trailingSpace"
         static let overlayTheme = "overlayTheme"
+        static let outputMode = "outputMode"
+        static let correctionModel = "correctionModel"
     }
 
     var hotkey: HotkeyPreset {
@@ -127,6 +182,18 @@ final class AppSettings {
     var overlayTheme: OverlayTheme {
         get { OverlayTheme(rawValue: store.string(forKey: Key.overlayTheme) ?? "") ?? .dark }
         set { store.set(newValue.rawValue, forKey: Key.overlayTheme) }
+    }
+    /// How the transcript is post-processed. Defaults to smart (AI intent). If
+    /// the Ollama server is down, Corrector fails safe and inserts the raw text.
+    var outputMode: OutputMode {
+        get { OutputMode(rawValue: store.string(forKey: Key.outputMode) ?? "") ?? .smart }
+        set { store.set(newValue.rawValue, forKey: Key.outputMode) }
+    }
+    /// The Ollama model used for AI reformatting (e.g. "qwen2.5:7b"). Empty means
+    /// let the server pick; the tray menu fills this from the installed models.
+    var correctionModel: String {
+        get { store.string(forKey: Key.correctionModel) ?? "" }
+        set { store.set(newValue, forKey: Key.correctionModel) }
     }
 }
 

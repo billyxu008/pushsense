@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let modelPath: String
     private let settings = AppSettings.shared
     private var modelReady = false
+    private var aiModels: [String] = []
 
     init(modelPath: String) {
         self.modelPath = modelPath
@@ -44,6 +45,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller = ctl
         modelReady = true
         overlay.setTheme(settings.overlayTheme.jsName)
+        // Fetch the model list, then preload the LLM only if AI mode is already
+        // on — so idle users pay no memory cost for a feature they aren't using.
+        DispatchQueue.global().async { [weak self] in
+            let models = Corrector.listModels()
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.aiModels = models
+                self.rebuildMenu(status: "Ready — hold \(self.settings.hotkey.title)")
+                if self.settings.outputMode.usesAI {
+                    Corrector.loadModel(self.effectiveModel())
+                }
+            }
+        }
         ctl.onStateChange = { [weak self] s in self?.onState(s) }
         ctl.onLevel = { [weak self] lvl in self?.overlay.setLevel(lvl) }
 
@@ -162,6 +176,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         trailing.target = self
         trailing.state = settings.trailingSpace ? .on : .off
         menu.addItem(trailing)
+        menu.addItem(submenuItem(title: "Output mode: \(settings.outputMode.title)", items: OutputMode.allCases.map { mode in
+            selectableItem(title: mode.title, selected: settings.outputMode == mode, value: mode.rawValue, action: #selector(changeOutputMode(_:)))
+        }))
+        // AI model picker (Ollama). Lists installed models; "Server default" lets
+        // Ollama choose. Populated lazily from `aiModels`.
+        var modelItems: [NSMenuItem] = [
+            selectableItem(title: "Server default", selected: settings.correctionModel.isEmpty, value: "", action: #selector(changeAIModel(_:)))
+        ]
+        modelItems += aiModels.map { name in
+            selectableItem(title: name, selected: settings.correctionModel == name, value: name, action: #selector(changeAIModel(_:)))
+        }
+        modelItems.append(.separator())
+        modelItems.append({ let i = NSMenuItem(title: "Refresh models", action: #selector(refreshAIModels), keyEquivalent: ""); i.target = self; return i }())
+        menu.addItem(submenuItem(title: "AI model: \(settings.correctionModel.isEmpty ? "default" : settings.correctionModel)", items: modelItems))
         menu.addItem(.separator())
         let readiness = NSMenuItem(title: modelReady ? "✓ Model whisper ready" : "⚠ Model unavailable", action: nil, keyEquivalent: "")
         readiness.isEnabled = false
@@ -221,6 +249,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         rebuildMenu(status: "Ready — hold \(settings.hotkey.title)")
     }
 
+    @objc private func changeOutputMode(_ sender: NSMenuItem) {
+        guard let rawValue = sender.representedObject as? String, let value = OutputMode(rawValue: rawValue) else { return }
+        let wasAI = settings.outputMode.usesAI
+        settings.outputMode = value
+        // Resource management: only keep the LLM in memory while AI mode is on.
+        if value.usesAI && !wasAI {
+            Corrector.loadModel(effectiveModel())
+        } else if !value.usesAI && wasAI {
+            Corrector.unloadModel(effectiveModel())
+        }
+        rebuildMenu(status: "Ready — hold \(settings.hotkey.title)")
+    }
+
+    @objc private func changeAIModel(_ sender: NSMenuItem) {
+        let previous = settings.correctionModel
+        settings.correctionModel = (sender.representedObject as? String) ?? ""
+        // If AI is active, swap resident models: unload the old, load the new.
+        if settings.outputMode.usesAI {
+            if !previous.isEmpty && previous != settings.correctionModel {
+                Corrector.unloadModel(previous)
+            }
+            Corrector.loadModel(settings.correctionModel)
+        }
+        rebuildMenu(status: "Ready — hold \(settings.hotkey.title)")
+    }
+
+    /// The model to actually load/unload/use. If the user picked "Server default"
+    /// (empty), fall back to the first installed model so load/unload still work.
+    private func effectiveModel() -> String {
+        if !settings.correctionModel.isEmpty { return settings.correctionModel }
+        return aiModels.first ?? ""
+    }
+
+    @objc private func refreshAIModels() {
+        DispatchQueue.global().async { [weak self] in
+            let models = Corrector.listModels()
+            DispatchQueue.main.async {
+                self?.aiModels = models
+                self?.rebuildMenu(status: "Ready — hold \(self?.settings.hotkey.title ?? "")")
+            }
+        }
+    }
+
     @objc private func changeOverlayTheme(_ sender: NSMenuItem) {
         guard let rawValue = sender.representedObject as? String, let value = OverlayTheme(rawValue: rawValue) else { return }
         settings.overlayTheme = value
@@ -247,4 +318,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func quit() { NSApp.terminate(nil) }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        // Don't leave the LLM resident in memory after we're gone.
+        if settings.outputMode.usesAI {
+            Corrector.unloadModel(effectiveModel())
+        }
+    }
 }
