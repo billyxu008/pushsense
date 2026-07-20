@@ -118,7 +118,7 @@ enum Corrector {
                   let first = choices.first,
                   let message = first["message"] as? [String: Any],
                   let content = message["content"] as? String else { return }
-            let cleaned = stripThinking(content).trimmingCharacters(in: .whitespacesAndNewlines)
+            let cleaned = stripFences(stripThinking(content)).trimmingCharacters(in: .whitespacesAndNewlines)
             if !cleaned.isEmpty { result = cleaned }
         }
         task.resume()
@@ -132,5 +132,21 @@ enum Corrector {
     private static func stripThinking(_ s: String) -> String {
         guard let close = s.range(of: "</think>") else { return s }
         return String(s[close.upperBound...])
+    }
+
+    /// Strip a surrounding markdown ``` code fence if the model wrapped its
+    /// answer in one (e.g. ```\n…\n```).
+    private static func stripFences(_ s: String) -> String {
+        var t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard t.hasPrefix("```") else { return s }
+        // drop the opening fence line (``` or ```lang)
+        if let firstNL = t.firstIndex(of: "\n") {
+            t = String(t[t.index(after: firstNL)...])
+        }
+        // drop the closing fence
+        if let range = t.range(of: "```", options: .backwards) {
+            t = String(t[..<range.lowerBound])
+        }
+        return t
     }
 }

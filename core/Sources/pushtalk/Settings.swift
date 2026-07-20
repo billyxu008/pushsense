@@ -87,31 +87,33 @@ enum OutputMode: String, CaseIterable {
             return ""
         case .smart:
             return """
-            You turn a user's spoken words into ready-to-paste text. The user \
-            speaks naturally and MAY include an instruction (e.g. "write an email \
-            to Ben saying…", "make a list of…", "fix this…") followed by content.
+            You convert a user's dictated request into ready-to-paste text. The \
+            speech is an instruction that may name a sender, a recipient, and the \
+            actual message content, all mixed together with filler words.
 
-            Decide what they want and produce it:
-            - Email request → a complete email in this exact order: greeting line \
-              to the named recipient, then body paragraphs, then a sign-off. Put \
-              a placeholder like [Your Name] ONLY on the final sign-off line — \
-              NEVER at the top or anywhere else.
-            - List request → a bullet list, one item per line starting with "- ".
-            - Note/tidy request → clean, well-punctuated prose.
-            - No instruction (plain dictation) → output exactly what they said, \
-              only fixing typos, casing, and punctuation. A misspelled English \
-              word is fixed to correct ENGLISH spelling, never translated.
+            Steps:
+            1. Figure out what they want (email, list, note, or plain dictation) \
+               and who it's from/to if mentioned.
+            2. Extract ONLY the real message content. Words like 帮我写, 写成邮件, \
+               写成邮件格式, output, 内容大概是, 这封信, 发件人是, 收件人是, "write \
+               an email to", "make a list of", "saying" are INSTRUCTIONS — never \
+               put them in the output.
+            3. Produce the finished result:
+               - Email → greeting to the recipient, then the message body (content \
+                 only), then a sign-off using the sender's name if given, else \
+                 [Your Name]. Placeholder goes ONLY on the sign-off line.
+               - List → bullet list, one item per line starting with "- ".
+               - Note/plain dictation → clean, well-punctuated text; for plain \
+                 dictation just fix typos and punctuation.
 
-            CRITICAL — language:
-            - Match the language of the CONTENT, not the instruction. If the \
-              instruction is Chinese but the dictated content is English (e.g. \
-              「写邮件给Ben 内容是 hello how are you」), the email body stays \
-              ENGLISH.
-            - If the content is Chinese, output Chinese. Mixed stays mixed. \
-              NEVER translate any word to another language.
-            - Never drop the first word of the content.
-            - Output ONLY the final text to paste — no preamble like "Here is…", \
-              no stray placeholder before the greeting.
+            ABSOLUTE RULES:
+            - NEVER repeat or echo the user's instruction. Do not write \
+              「您需要我帮您写…」or restate what they asked for.
+            - NEVER include filler/meta words in the output.
+            - Output ONLY the finished text — no preamble, no explanation, no \
+              surrounding ``` code fences.
+            - Match the language of the CONTENT. If the content is Chinese, output \
+              Chinese; if English, English; mixed stays mixed. NEVER translate.
             """
         }
     }
@@ -183,10 +185,11 @@ final class AppSettings {
         get { OverlayTheme(rawValue: store.string(forKey: Key.overlayTheme) ?? "") ?? .dark }
         set { store.set(newValue.rawValue, forKey: Key.overlayTheme) }
     }
-    /// How the transcript is post-processed. Defaults to smart (AI intent). If
-    /// the Ollama server is down, Corrector fails safe and inserts the raw text.
+    /// How the transcript is post-processed. Defaults to raw (pure dictation) —
+    /// clean and reliable out of the box. The user opts into AI Smart mode from
+    /// the tray menu, which then loads the local Ollama model.
     var outputMode: OutputMode {
-        get { OutputMode(rawValue: store.string(forKey: Key.outputMode) ?? "") ?? .smart }
+        get { OutputMode(rawValue: store.string(forKey: Key.outputMode) ?? "") ?? .raw }
         set { store.set(newValue.rawValue, forKey: Key.outputMode) }
     }
     /// The Ollama model used for AI reformatting (e.g. "qwen2.5:7b"). Empty means
