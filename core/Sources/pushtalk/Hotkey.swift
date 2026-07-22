@@ -36,7 +36,7 @@ final class Hotkey {
             },
             userInfo: selfPtr
         ) else {
-            RuntimeLog.write("CGEventTap creation failed for right Option")
+            RuntimeLog.write("CGEventTap creation failed for keycode \(targetKeycode)")
             return false
         }
 
@@ -45,7 +45,7 @@ final class Hotkey {
         runLoopSource = source
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: newTap, enable: true)
-        RuntimeLog.write("CGEventTap ready key=61")
+        RuntimeLog.write("CGEventTap ready keycode=\(targetKeycode) flagMask=\(flagMask)")
         return true
     }
 
@@ -68,7 +68,7 @@ final class Hotkey {
         let down = (event.flags.rawValue & flagMask) != 0
         if down && !isDown {
             isDown = true
-            RuntimeLog.write("right-option DOWN")
+            RuntimeLog.write("hotkey(\(targetKeycode)) DOWN")
             // CGEventTap callbacks have a strict time budget. Starting an
             // AVAudioEngine can take hundreds of milliseconds; doing it here
             // makes macOS disable the global tap until another UI event wakes
@@ -77,7 +77,7 @@ final class Hotkey {
             DispatchQueue.main.async { [weak self] in self?.onDown?() }
         } else if !down && isDown {
             isDown = false
-            RuntimeLog.write("right-option UP")
+            RuntimeLog.write("hotkey(\(targetKeycode)) UP")
             DispatchQueue.main.async { [weak self] in self?.onUp?() }
         }
     }

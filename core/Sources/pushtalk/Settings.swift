@@ -152,7 +152,7 @@ final class AppSettings {
 
     var hotkey: HotkeyPreset {
         get {
-            return .rightOption
+            HotkeyPreset(rawValue: store.string(forKey: Key.hotkey) ?? "") ?? .rightOption
         }
         set {
             store.set(newValue.rawValue, forKey: Key.hotkey)
