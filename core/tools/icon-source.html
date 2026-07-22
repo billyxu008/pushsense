@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>icon render</title>
+<style>html,body{margin:0;padding:0;background:transparent}canvas{display:block}</style>
+</head>
+<body>
+<canvas id="c" width="1024" height="1024"></canvas>
+<script>
+/* Icon renderer — drawing code lifted verbatim from overlay.html so the Dock
+ * icon is pixel-faithful to the live overlay. Only the framing differs:
+ * fixed t/volume (a chosen "speaking" frame) instead of the animation loop. */
+const TAU = Math.PI * 2;
+
+const CONFIG = {
+  size: 1024,
+  blobRadius: 300,
+  // Icon-specific tuning. The overlay's glow/satellite sizes are tuned for a
+  // 512px canvas seen at ~120px on screen; scaling them linearly to 1024 blows
+  // the rim glow into an opaque white border. These are re-tuned by eye.
+  rimBlur: 26,
+  satelliteScale: 0.55,
+  satelliteBlur: 22,
+  morphSpeed: 1.0,
+  morphAmp: 0.06,
+  crescentSpeed: 2.0,
+  crescentAlpha: 0.9,
+  satelliteCount: 3,
+  satelliteOrbitX: 1.45,
+  satelliteOrbitY: 1.05,
+  satelliteSpeed: 0.6,
+};
+
+const THEMES = {
+  dark: {
+    rimGlow: 'rgba(255,255,255,.25)',
+    satelliteColor: 'rgba(230,235,255,.9)',
+    crescent: 'rgba(255,255,255,',
+    crescentMid: 'rgba(200,205,230,.25)',
+    gradient: [[0,'#9aa0b8'],[0.35,'#3c4054'],[0.7,'#15161f'],[1,'#000000']],
+  },
+};
+
+function blobPoints(C, R, t, amp) {
+  const pts = [], N = 140;
+  for (let k = 0; k < N; k++) {
+    const th = TAU * k / N;
+    const r = R * (1 + amp * Math.sin(3 * th + t * 3)
+                   + amp * 0.6 * Math.sin(5 * th - t * 2));
+    pts.push([C + r * Math.cos(th), C + r * Math.sin(th)]);
+  }
+  return pts;
+}
+
+function tracePath(ctx, pts) {
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (const p of pts) ctx.lineTo(p[0], p[1]);
+  ctx.closePath();
+}
+
+function darkChromeGradient(ctx, C, R, t, stops) {
+  const hx = C - R * 0.42 + R * 0.20 * Math.sin(t * 1.5);
+  const hy = C - R * 0.50 + R * 0.16 * Math.cos(t * 1.2);
+  const g = ctx.createRadialGradient(hx, hy, R * 0.06, C, C, R * 1.55);
+  for (const [pos, col] of stops) g.addColorStop(pos, col);
+  return g;
+}
+
+function drawEclipseChrome(ctx, t, volume, mode, theme, scaleOverride) {
+  const cfg = CONFIG;
+  const scale = scaleOverride;
+  const R = cfg.blobRadius * scale;
+  const C = cfg.size / 2;
+  const amp = cfg.morphAmp * (1 + volume * 3.5);
+  const ctxW = cfg.size;
+
+  ctx.clearRect(0, 0, ctxW, ctxW);
+
+  const pts = blobPoints(C, R, t * cfg.morphSpeed, amp);
+  tracePath(ctx, pts);
+  ctx.save();
+  ctx.shadowColor = theme.rimGlow;
+  ctx.shadowBlur = cfg.rimBlur;
+  ctx.fillStyle = darkChromeGradient(ctx, C, R, t, theme.gradient);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  tracePath(ctx, pts);
+  ctx.clip();
+  const spinRate = (mode === 'transcribing') ? cfg.crescentSpeed * 2.4 : cfg.crescentSpeed;
+  const ang = t * spinRate;
+  // Push the crescent source out toward the limb (0.6 -> 0.95) and tighten its
+  // falloff, so it rakes the edge like an eclipse rather than pooling as a
+  // smudge in the middle of the blob.
+  const hx = C + R * 0.95 * Math.cos(ang);
+  const hy = C + R * 0.95 * Math.sin(ang);
+  const cres = ctx.createRadialGradient(hx, hy, 2, hx, hy, R * 0.72);
+  const a = cfg.crescentAlpha * (0.7 + 0.3 * volume);
+  cres.addColorStop(0,   theme.crescent + a + ')');
+  cres.addColorStop(0.4, theme.crescentMid);
+  cres.addColorStop(1,   theme.crescent + '0)');
+  ctx.fillStyle = cres;
+  ctx.fillRect(0, 0, ctxW, ctxW);
+  ctx.restore();
+
+  for (let i = 0; i < cfg.satelliteCount; i++) {
+    const sa = TAU * (i / cfg.satelliteCount) + t * cfg.satelliteSpeed * TAU * 0.16;
+    const px = C + R * cfg.satelliteOrbitX * Math.cos(sa);
+    const py = C + R * cfg.satelliteOrbitY * Math.sin(sa);
+    const sr = (3.5 + 1.8 * Math.sin(sa * 3)) * (cfg.size / 512) * cfg.satelliteScale;
+    ctx.save();
+    ctx.shadowColor = theme.satelliteColor;
+    ctx.shadowBlur = cfg.satelliteBlur;
+    ctx.fillStyle = theme.satelliteColor;
+    ctx.beginPath();
+    ctx.arc(px, py, Math.max(sr, 1), 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+/* Chosen frame. t picks where the highlight and crescent sit; volume drives the
+ * morph amplitude. Tuned so the specular hotspot reads upper-left (conventional
+ * light source) and the crescent sweeps the lower-right limb. */
+/* SCALE pulls the blob in so the orbiting satellites stay inside the canvas and
+ * the icon keeps the margin macOS expects (art fills ~80% of the tile). */
+const T = 1.15;
+const VOL = 0.55;
+const SCALE = 0.72;
+
+const ctx = document.getElementById('c').getContext('2d');
+drawEclipseChrome(ctx, T, VOL, 'listening', THEMES.dark, SCALE);
+window.__png = () => document.getElementById('c').toDataURL('image/png');
+window.__done = true;
+</script>
+</body>
+</html>

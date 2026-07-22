@@ -23,6 +23,10 @@ cp "$DIR/.build/release/pushtalk" "$MACOS/PushTalk"
 # overlay UI (WebView loads this from the bundle Resources)
 cp "$DIR/Sources/pushtalk/Resources/overlay.html" "$RES/overlay.html"
 
+# app icon (Dock / Finder / Get Info). Regenerate from icon-source.html — it
+# reuses overlay.html's draw code so the icon matches the live overlay.
+cp "$DIR/Sources/pushtalk/Resources/AppIcon.icns" "$RES/AppIcon.icns"
+
 # Bake the whisper/ggml dylib dirs into the binary's rpath so it finds them
 # without a launcher script or DYLD env var.
 install_name_tool -add_rpath /opt/homebrew/opt/whisper-cpp/lib "$MACOS/PushTalk" 2>/dev/null || true
@@ -43,6 +47,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleShortVersionString</key><string>0.1.1</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleExecutable</key><string>PushTalk</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
   <key>NSMicrophoneUsageDescription</key>
