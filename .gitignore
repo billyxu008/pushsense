@@ -3,6 +3,7 @@
 # SwiftPM build output and locally packaged application
 core/.build/
 core/PushTalk.app/
+core/*.dmg
 whisper-probe/.build/
 
 # Local runtime diagnostics
