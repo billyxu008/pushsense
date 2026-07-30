@@ -7,12 +7,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var controller: Controller?
     private let overlay = Overlay()
-    private let modelPath: String
+    /// nil until a model is installed. Mutable so a download can bring the app
+    /// to life without a relaunch.
+    private var modelPath: String?
     private let settings = AppSettings.shared
     private var modelReady = false
     private var aiModels: [String] = []
+    /// Non-nil while a download is in flight; drives the menu's progress line.
+    private var downloadStatus: String?
 
-    init(modelPath: String) {
+    init(modelPath: String?) {
         self.modelPath = modelPath
         super.init()
     }
@@ -23,21 +27,83 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         updateIcon(state: .idle)
+        loadModel()
+    }
+
+    /// Load whichever model is currently active, or prompt for a download if none
+    /// is installed. Safe to call again after a download or a model switch.
+    private func loadModel() {
+        modelPath = modelPath ?? ModelStore.resolveActiveModelPath(settings: settings)
+
+        guard let path = modelPath else {
+            modelReady = false
+            controller = nil
+            rebuildMenu(status: "No model — choose one to download")
+            return
+        }
+
+        modelReady = false
         rebuildMenu(status: "Loading model…")
 
         // Load the 1.6GB model OFF the main thread so the menubar item paints
         // immediately instead of freezing during load.
         DispatchQueue.global().async { [weak self] in
             guard let self = self else { return }
-            let ctl = Controller(modelPath: self.modelPath, settings: self.settings)
+            let ctl = Controller(modelPath: path, settings: self.settings)
             DispatchQueue.main.async {
                 guard let ctl = ctl else {
-                    self.rebuildMenu(status: "⚠ Model failed to load")
+                    // The file is missing or corrupt. Clear it so the menu offers
+                    // a re-download rather than silently failing forever.
+                    RuntimeLog.write("model failed to load: \(path)")
+                    self.modelPath = nil
+                    self.rebuildMenu(status: "⚠ Model failed to load — re-download")
                     return
                 }
                 self.setupController(ctl)
             }
         }
+    }
+
+    /// Download a model, then load it automatically when it lands.
+    private func download(_ model: WhisperModel) {
+        downloadStatus = "Starting…"
+        rebuildMenu(status: "Downloading \(model.title)")
+
+        ModelDownloader.shared.start(model) { [weak self] progress in
+            guard let self = self else { return }
+            switch progress {
+            case let .downloading(fraction, received, total):
+                let mb = { (b: Int64) in String(format: "%.0f", Double(b) / 1_048_576) }
+                self.downloadStatus = "\(Int(fraction * 100))% · \(mb(received))/\(mb(total)) MB"
+                self.rebuildMenu(status: "Downloading \(model.title)")
+
+            case .finished:
+                self.downloadStatus = nil
+                self.settings.whisperModelID = model.id
+                // Force re-resolution now that the file exists, then load it.
+                self.modelPath = nil
+                self.loadModel()
+
+            case let .failed(message):
+                self.downloadStatus = nil
+                RuntimeLog.write("download failed: \(message)")
+                self.rebuildMenu(status: "⚠ Download failed — \(message)")
+                self.notify(title: "PushTalk download failed", body: message)
+
+            case .cancelled:
+                self.downloadStatus = nil
+                self.rebuildMenu(status: self.modelReady ? "Ready" : "No model — choose one to download")
+            }
+        }
+    }
+
+    private func notify(title: String, body: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = body
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 
     private func setupController(_ ctl: Controller) {
@@ -191,16 +257,137 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         modelItems.append({ let i = NSMenuItem(title: "Refresh models", action: #selector(refreshAIModels), keyEquivalent: ""); i.target = self; return i }())
         menu.addItem(submenuItem(title: "AI model: \(settings.correctionModel.isEmpty ? "default" : settings.correctionModel)", items: modelItems))
         menu.addItem(.separator())
-        let readiness = NSMenuItem(title: modelReady ? "✓ Model whisper ready" : "⚠ Model unavailable", action: nil, keyEquivalent: "")
+
+        // Whisper model: download / switch / remove. This is the only place a
+        // model gets installed — the app ships without one.
+        menu.addItem(submenuItem(title: "Speech model: \(activeModelTitle())", items: whisperModelItems()))
+
+        let readiness = NSMenuItem(title: modelReady ? "✓ Speech model ready" : "⚠ No speech model", action: nil, keyEquivalent: "")
         readiness.isEnabled = false
         menu.addItem(readiness)
+        if let downloadStatus {
+            let progress = NSMenuItem(title: "   ↓ \(downloadStatus)", action: nil, keyEquivalent: "")
+            progress.isEnabled = false
+            menu.addItem(progress)
+            let cancel = NSMenuItem(title: "Cancel download", action: #selector(cancelDownload), keyEquivalent: "")
+            cancel.target = self
+            menu.addItem(cancel)
+        }
         let configFolder = NSMenuItem(title: "Open config folder", action: #selector(openConfigFolder), keyEquivalent: "")
         configFolder.target = self
         menu.addItem(configFolder)
+        let modelFolder = NSMenuItem(title: "Open model folder", action: #selector(openModelFolder), keyEquivalent: "")
+        modelFolder.target = self
+        menu.addItem(modelFolder)
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit PushTalk", action: #selector(quit), keyEquivalent: "q"))
         menu.items.last?.target = self
         statusItem.menu = menu
+    }
+
+    private func activeModelTitle() -> String {
+        guard let path = modelPath else { return "none" }
+        let name = URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
+        return WhisperModel.all.first { $0.id == name }?.title ?? name
+    }
+
+    /// One row per catalog model: installed ones are selectable, missing ones
+    /// offer a download. Everything is disabled while a download is running so
+    /// two transfers can't overlap.
+    private func whisperModelItems() -> [NSMenuItem] {
+        let busy = ModelDownloader.shared.isDownloading
+        var items: [NSMenuItem] = []
+
+        for model in WhisperModel.all {
+            let installed = ModelStore.isInstalled(model)
+            let isActive = installed && modelPath == ModelStore.url(for: model).path
+            let title = installed ? model.title : "\(model.title)  ⤓ Download"
+            let item = NSMenuItem(
+                title: title,
+                action: installed ? #selector(selectWhisperModel(_:)) : #selector(downloadWhisperModel(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = model.id
+            item.state = isActive ? .on : .off
+            item.toolTip = model.note
+            item.isEnabled = !busy
+            items.append(item)
+        }
+
+        items.append(.separator())
+        let installedModels = ModelStore.installed
+        if installedModels.isEmpty {
+            let hint = NSMenuItem(title: "Downloads go to Application Support", action: nil, keyEquivalent: "")
+            hint.isEnabled = false
+            items.append(hint)
+        } else {
+            let removeItems = installedModels.map { model -> NSMenuItem in
+                let i = NSMenuItem(title: model.title, action: #selector(removeWhisperModel(_:)), keyEquivalent: "")
+                i.target = self
+                i.representedObject = model.id
+                i.isEnabled = !busy
+                return i
+            }
+            items.append(submenuItem(title: "Remove downloaded…", items: removeItems))
+        }
+        return items
+    }
+
+    @objc private func downloadWhisperModel(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String,
+              let model = WhisperModel.all.first(where: { $0.id == id }) else { return }
+        download(model)
+    }
+
+    @objc private func selectWhisperModel(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String,
+              let model = WhisperModel.all.first(where: { $0.id == id }),
+              ModelStore.isInstalled(model) else { return }
+        settings.whisperModelID = id
+        // Drop the old context and load the newly chosen file.
+        controller = nil
+        modelPath = ModelStore.url(for: model).path
+        loadModel()
+    }
+
+    @objc private func removeWhisperModel(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String,
+              let model = WhisperModel.all.first(where: { $0.id == id }) else { return }
+
+        let alert = NSAlert()
+        alert.messageText = "Remove \(model.title)?"
+        alert.informativeText = "The file is deleted from disk. You can download it again later."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Remove")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        let wasActive = modelPath == ModelStore.url(for: model).path
+        do {
+            try ModelStore.delete(model)
+        } catch {
+            notify(title: "Could not remove model", body: error.localizedDescription)
+            return
+        }
+        if wasActive {
+            // Release the loaded context, then fall back to another model if any.
+            controller = nil
+            modelReady = false
+            modelPath = nil
+            loadModel()
+        } else {
+            rebuildMenu(status: modelReady ? "Ready — hold \(settings.hotkey.title)" : "No model")
+        }
+    }
+
+    @objc private func cancelDownload() {
+        ModelDownloader.shared.cancel()
+    }
+
+    @objc private func openModelFolder() {
+        try? ModelStore.ensureDirectory()
+        NSWorkspace.shared.open(ModelStore.directory)
     }
 
     private func submenuItem(title: String, items: [NSMenuItem]) -> NSMenuItem {

@@ -7,7 +7,9 @@ set -e
 export DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
-MODEL="~/transcriber-models/ggml-large-v3-turbo.bin"
+# No model is baked in or bundled. The app resolves it at runtime from
+# ~/Library/Application Support/PushTalk/models and downloads it on demand from
+# the menubar (Speech model → Download). See ModelStore.swift.
 APP="$DIR/PushTalk.app"
 MACOS="$APP/Contents/MacOS"
 RES="$APP/Contents/Resources"
@@ -32,9 +34,6 @@ cp "$DIR/Sources/pushtalk/Resources/AppIcon.icns" "$RES/AppIcon.icns"
 install_name_tool -add_rpath /opt/homebrew/opt/whisper-cpp/lib "$MACOS/PushTalk" 2>/dev/null || true
 install_name_tool -add_rpath /opt/homebrew/opt/ggml/lib "$MACOS/PushTalk" 2>/dev/null || true
 
-# Pass the model path via an env var baked into Info.plist is not possible; the
-# binary reads argv[1]. Since the bundle launches with no args, embed the model
-# path as a fallback the binary can read from its own Info.plist.
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -52,7 +51,6 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>LSUIElement</key><true/>
   <key>NSMicrophoneUsageDescription</key>
   <string>PushTalk records your voice while you hold Right-Option, then types the transcription into the focused app.</string>
-  <key>PTModelPath</key><string>$MODEL</string>
 </dict>
 </plist>
 PLIST

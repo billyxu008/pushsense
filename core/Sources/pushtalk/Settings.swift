@@ -148,6 +148,7 @@ final class AppSettings {
         static let overlayTheme = "overlayTheme"
         static let outputMode = "outputMode"
         static let correctionModel = "correctionModel"
+        static let whisperModelID = "whisperModelID"
     }
 
     var hotkey: HotkeyPreset {
@@ -197,6 +198,13 @@ final class AppSettings {
     var correctionModel: String {
         get { store.string(forKey: Key.correctionModel) ?? "" }
         set { store.set(newValue, forKey: Key.correctionModel) }
+    }
+    /// Which Whisper model to transcribe with, by `WhisperModel.id`. Defaults to
+    /// the recommended one; ModelStore falls back to whatever is actually on disk
+    /// if this one hasn't been downloaded.
+    var whisperModelID: String {
+        get { store.string(forKey: Key.whisperModelID) ?? WhisperModel.recommended.id }
+        set { store.set(newValue, forKey: Key.whisperModelID) }
     }
 }
 
