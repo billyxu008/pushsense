@@ -10,17 +10,40 @@ enum Corrector {
     /// Ollama's OpenAI-compatible base. (LM Studio would be :1234.)
     static let baseURL = "http://localhost:11434"
 
+    /// Cloud endpoints. Both speak the OpenAI /v1/chat/completions schema, so the
+    /// only per-provider difference is the host and the model name.
+    static let openAIBaseURL = "https://api.openai.com"
+    /// Ollama Cloud (Turbo) — same Ollama ecosystem as local, but bigger models
+    /// on their GPUs. OpenAI-compatible endpoint, bearer-auth with an ollama.com key.
+    static let ollamaCloudBaseURL = "https://ollama.com"
+
     struct Config {
         var endpoint: URL
-        var model: String       // model name, e.g. "qwen2.5:7b"; "" = server default
+        var model: String       // model name, e.g. "qwen2.5:7b" or "gpt-4o-mini"; "" = server default (local only)
         var timeout: TimeInterval
+        var apiKey: String      // "" for local Ollama; the user's key for cloud
     }
 
+    /// Local Ollama config (no API key needed).
     static func config(model: String) -> Config {
         Config(
             endpoint: URL(string: "\(baseURL)/v1/chat/completions")!,
             model: model,
-            timeout: 20
+            timeout: 20,
+            apiKey: ""
+        )
+    }
+
+    /// Cloud config (BYOK). `baseURL` selects the provider (OpenAI or Ollama
+    /// Cloud); both use the /v1/chat/completions schema and bearer auth. A cloud
+    /// call requires an explicit model — unlike local Ollama, there's no
+    /// "server default", so `defaultModel` is used when the caller passes none.
+    static func cloudConfig(baseURL: String, model: String, defaultModel: String, apiKey: String) -> Config {
+        Config(
+            endpoint: URL(string: "\(baseURL)/v1/chat/completions")!,
+            model: model.isEmpty ? defaultModel : model,
+            timeout: 30,   // cloud (esp. big models) can be slower than local
+            apiKey: apiKey
         )
     }
 
@@ -80,10 +103,13 @@ enum Corrector {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !systemPrompt.isEmpty else { return text }
 
-        // Ollama's chat endpoint requires a model name. If none is configured
-        // ("Server default"), fall back to the first installed model.
+        let isCloud = !config.apiKey.isEmpty
+
+        // A chat call needs a model name. Cloud configs always carry one
+        // (cloudConfig defaults it). For local Ollama, "" means "server
+        // default" → fall back to the first installed model.
         var modelName = config.model
-        if modelName.isEmpty { modelName = listModels().first ?? "" }
+        if modelName.isEmpty && !isCloud { modelName = listModels().first ?? "" }
         guard !modelName.isEmpty else { return text }
 
         let body: [String: Any] = [
@@ -103,6 +129,9 @@ enum Corrector {
         var req = URLRequest(url: config.endpoint)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if isCloud {
+            req.setValue("Bearer \(config.apiKey)", forHTTPHeaderField: "Authorization")
+        }
         req.httpBody = data
         req.timeoutInterval = config.timeout
 
