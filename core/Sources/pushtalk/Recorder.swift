@@ -21,10 +21,29 @@ final class Recorder {
     var onLevel: ((Float) -> Void)?
     var deviceID: AudioDeviceID?
 
+    /// Loudest raw sample seen during this recording, and the mean-square sum,
+    /// both over the untouched 16kHz mono signal (no overlay amplification).
+    /// `stop()` reports these so the caller can tell real speech from a muted or
+    /// dead microphone before spending time in Whisper.
+    private var capturedPeak: Float = 0
+    private var capturedSumSq: Float = 0
+    private var capturedCount: Int = 0
+
+    /// Objective loudness of the last recording. `peak` is the largest absolute
+    /// sample; `rms` is the root-mean-square across the whole take.
+    struct Loudness {
+        let peak: Float
+        let rms: Float
+    }
+    private(set) var lastLoudness = Loudness(peak: 0, rms: 0)
+
     func start() throws {
         let selectedDevice = deviceID.map { String($0) } ?? "default"
         RuntimeLog.write("Recorder.start deviceID=\(selectedDevice) mainThread=\(Thread.isMainThread)")
         samples.removeAll(keepingCapacity: true)
+        capturedPeak = 0
+        capturedSumSq = 0
+        capturedCount = 0
         let input = engine.inputNode
         if let deviceID {
             guard let audioUnit = input.audioUnit else {
@@ -57,7 +76,9 @@ final class Recorder {
         RuntimeLog.write("AVAudioEngine running=\(engine.isRunning) format=\(inFormat)")
     }
 
-    /// Stops and returns accumulated 16kHz mono float PCM.
+    /// Stops and returns accumulated 16kHz mono float PCM. Also publishes
+    /// `lastLoudness` for the take, so the caller can reject a silent recording
+    /// before transcribing it.
     func stop() -> [Float] {
         guard recording else { return samples }
         recording = false
@@ -65,7 +86,12 @@ final class Recorder {
         engine.stop()
         let out = samples
         samples.removeAll()
-        RuntimeLog.write("Recorder.stop samples=\(out.count)")
+        let rms = capturedCount > 0 ? (capturedSumSq / Float(capturedCount)).squareRoot() : 0
+        lastLoudness = Loudness(peak: capturedPeak, rms: rms)
+        RuntimeLog.write(String(
+            format: "Recorder.stop samples=%d peak=%.5f rms=%.5f",
+            out.count, capturedPeak, rms
+        ))
         return out
     }
 
@@ -101,6 +127,13 @@ final class Recorder {
             if a > peak { peak = a }
             sumSq += s * s
         }
+        // Accumulate the RAW loudness for the whole take. Kept separate from the
+        // overlay level below, which is deliberately amplified and clamped and so
+        // can't be used to judge silence.
+        if peak > capturedPeak { capturedPeak = peak }
+        capturedSumSq += sumSq
+        capturedCount += n
+
         // Speech peaks are small (~0.05–0.2). Blend peak + RMS and amplify hard
         // so the overlay clearly reacts to normal speaking volume.
         let rms = n > 0 ? (sumSq / Float(n)).squareRoot() : 0

@@ -87,17 +87,41 @@ final class Controller {
             return
         }
         let pcm = recorder.stop()
+        let loudness = recorder.lastLoudness
         let language = settings.language.whisperCode
         let pasteMode = settings.pasteMode
         let trailingSpace = settings.trailingSpace
         let outputMode = settings.outputMode
         RuntimeLog.write("recording stopped; pcmSamples=\(pcm.count)")
+
+        // Muted or dead microphone: there is nothing to transcribe, and running
+        // Whisper on silence is exactly what produces a bogus "Thank you." in the
+        // user's document. Bail out before the model, type nothing, and go
+        // straight back to idle.
+        if SilenceGuard.isSilent(peak: loudness.peak, rms: loudness.rms, sampleCount: pcm.count) {
+            RuntimeLog.write(String(
+                format: "silent take — skipping Whisper (peak=%.5f rms=%.5f samples=%d)",
+                loudness.peak, loudness.rms, pcm.count
+            ))
+            setState(.idle)
+            return
+        }
+
         setState(.transcribing)
         DispatchQueue.global().async { [weak self] in
             guard let self = self else { return }
             RuntimeLog.write("Whisper started")
             var text = self.whisper.transcribe(pcm, language: language)
             RuntimeLog.write("Whisper RAW: \(text)")
+
+            // Had signal but no speech (room tone, a click, a breath): Whisper
+            // still emits caption filler. Drop it before the AI stage so Smart
+            // mode isn't handed a hallucination to expand on.
+            if SilenceGuard.isHallucinatedPhrase(text) {
+                RuntimeLog.write("hallucination filtered: \(text)")
+                DispatchQueue.main.async { self.setState(.idle) }
+                return
+            }
 
             // Optional AI reformat (local LLM) per output mode. Fails safe: on
             // any error the original transcript is used.
