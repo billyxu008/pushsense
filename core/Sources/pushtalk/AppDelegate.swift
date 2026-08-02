@@ -1,6 +1,7 @@
 import AppKit
 import CoreAudio
 import CoreGraphics
+import ServiceManagement
 
 /// Menubar-only app. Owns the status item and the Controller.
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -242,6 +243,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         trailing.target = self
         trailing.state = settings.trailingSpace ? .on : .off
         menu.addItem(trailing)
+        let launchAtLogin = NSMenuItem(
+            title: "Launch at login", action: #selector(toggleLaunchAtLogin(_:)), keyEquivalent: ""
+        )
+        launchAtLogin.target = self
+        launchAtLogin.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        menu.addItem(launchAtLogin)
         menu.addItem(submenuItem(title: "Output mode: \(settings.outputMode.title)", items: OutputMode.allCases.map { mode in
             selectableItem(title: mode.title, selected: settings.outputMode == mode, value: mode.rawValue, action: #selector(changeOutputMode(_:)))
         }))
@@ -434,6 +441,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func toggleTrailingSpace(_ sender: NSMenuItem) {
         settings.trailingSpace.toggle()
         rebuildMenu(status: "Ready — hold \(settings.hotkey.title)")
+    }
+
+    /// Uses the app bundle itself as the login item. Unlike a hand-written
+    /// LaunchAgent this appears in macOS Login Items and is managed entirely
+    /// by the system, including the user-visible approval state.
+    @objc private func toggleLaunchAtLogin(_ sender: NSMenuItem) {
+        do {
+            if SMAppService.mainApp.status == .enabled {
+                try SMAppService.mainApp.unregister()
+            } else {
+                try SMAppService.mainApp.register()
+            }
+            rebuildMenu(status: "Ready — hold \(settings.hotkey.title)")
+        } catch {
+            RuntimeLog.write("launch-at-login update failed: \(error.localizedDescription)")
+            notify(
+                title: "Couldn't update Launch at Login",
+                body: "Check System Settings → General → Login Items, then try again."
+            )
+            rebuildMenu(status: "Ready — hold \(settings.hotkey.title)")
+        }
     }
 
     @objc private func changeOutputMode(_ sender: NSMenuItem) {
