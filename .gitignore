@@ -8,3 +8,6 @@ whisper-probe/.build/
 
 # Local runtime diagnostics
 /tmp/pushtalk-runtime.log
+
+# Code-graph tool output
+graphify-out/
