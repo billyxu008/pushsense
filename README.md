@@ -1,50 +1,90 @@
-# PushTalk — Native (macOS)
+# PushTalk
 
-Native Swift rewrite of PushTalk, the push-to-talk dictation tool. Hold
-Right-Option, speak, release — the transcript is typed into whatever text field
-you're focused on. Fully local (whisper.cpp), no cloud, no API keys.
+Push-to-talk dictation for macOS. Hold a key, speak, release — the text is
+typed into whatever field you're focused on.
 
-Tiny binary (~10–20MB vs the old Electron build's ~230MB), low memory, no
+Everything runs on your machine. No cloud, no account, no API key.
+
+![status](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey)
+![status](https://img.shields.io/badge/build-from%20source-blue)
+
+## Why this exists
+
+I type a lot, and I wanted to talk to my editor instead. The tools I found were
+either subscription-priced or sent audio to a server. Speech I dictate all day
+is not something I want to hand to a third party, so I built one that doesn't
+leave the laptop.
+
+The first version was Electron and shipped as a 230MB app. This is the Swift
+rewrite: **4.8MB installed, 2.2MB as a disk image**. Same feature set, no
 Chromium.
 
-## The only codebase
+## How it works
 
-This is PushTalk. The original Electron build (formerly `StartUp/transcriber/`)
-was deleted on 2026-07-27 — the native rewrite had surpassed it, and its Swift
-helpers had already been lifted across.
-
-Its history is preserved on the `electron-archive` branch of this repo. Note
-that branch shares **no common history** with `master`: the native rewrite
-replaced the repo contents wholesale rather than building on the Electron
-lineage, so the two are disjoint. To read it:
-
-```bash
-git log origin/electron-archive
+```
+Right-Option held  →  record (AVFoundation)
+                   →  transcribe (whisper.cpp, Metal GPU)
+                   →  type it out (CGEvent unicode)
 ```
 
-Decision (2026-07-19, revised 2026-07-27): Mac goes native. The Electron tree
-was initially kept as a future Windows base; that was dropped, since a Windows
-port would start from this codebase's current logic rather than a frozen tree,
-and the macOS-specific pieces are exactly the ones that don't port anyway.
+Four small pieces, one per step: `Hotkey.swift`, `Recorder.swift`,
+`Whisper.swift`, `Injector.swift`. It lives in the menu bar and shows a halo
+overlay while listening.
 
-## Status — rewrite complete
+**Features**
 
-- [x] **Phase 0** — verified Swift can link `libwhisper.dylib` and transcribe
-      in-process (Metal GPU). Key gotcha: must call `ggml_backend_load_all()`
-      before `whisper_init`, or ggml reports `backends = 0` and aborts.
-- [x] **Phase 1** — hotkey (CGEventTap) → record (AVFoundation) → whisper →
-      inject (CGEvent unicode). See `Hotkey.swift`, `Recorder.swift`,
-      `Whisper.swift`, `Injector.swift`.
-- [x] **Phase 2** — menubar app + status (`AppDelegate.swift`).
-- [x] **Phase 3** — halo-bloom overlay + halo icon (`Overlay.swift`,
-      `HaloIcon.swift`).
-- [x] **Phase 4** — menus: change hotkey, pick mic, language (`Settings.swift`).
-- [x] **Phase 5** — packaged `.app` (`core/make-app.sh` → `core/PushTalk.app`).
+- Any hotkey, any microphone, any Whisper language
+- Speech models are downloaded by the app on first run, not baked into the
+  bundle
+- Silence is discarded rather than typed — Whisper hallucinates confident text
+  from near-silent audio, which is worse than typing nothing
+- Optional "Smart mode": a local Ollama model reformats the raw transcript
+  (opt-in; raw is the default). Cloud LLMs work too, bring your own key
+- Settings live in the Keychain
 
-Beyond the original plan: AI Smart mode via local Ollama (`Corrector.swift`)
-and Keychain-backed settings (`Keychain.swift`) — neither existed in Electron.
+## Install
 
-## Build
+**There is no signed download yet.** The `.app` I build locally is ad-hoc
+signed, which means macOS reports it as damaged on any machine but mine —
+worse than unsigned, since Gatekeeper won't let you right-click past it.
+Notarization needs a paid Apple Developer account, and I haven't bought one.
 
-Requires full Xcode (Command Line Tools alone can't build a `.app`). This repo
-uses Xcode-beta via `DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer`.
+So: build it yourself.
+
+```bash
+git clone https://github.com/billyxu008/pushtalk-transcriber.git
+cd pushtalk-transcriber/core
+bash make-app.sh
+```
+
+Requires **full Xcode** — Command Line Tools alone cannot produce a `.app`.
+The result is `core/PushTalk.app`; drag it to `/Applications`.
+
+On first launch macOS will ask for **Microphone** and **Accessibility**
+permission. Accessibility is what lets it type into other apps; without it the
+transcript has nowhere to go.
+
+## What I learned building it
+
+The notes I'd have wanted before starting:
+
+- **ggml needs `ggml_backend_load_all()` before `whisper_init`.** Skip it and
+  it reports `backends = 0` and aborts, with no hint that a call is missing.
+- **Bundling beats depending.** The app used to need Homebrew's libraries at
+  runtime — fine on my machine, broken on everyone else's. Every dependency is
+  now copied into the bundle.
+- **Whisper invents text from silence.** It doesn't return empty; it returns
+  something plausible. That has to be filtered explicitly.
+- **Ad-hoc signing is worse than no signing** for anything you hand to another
+  person.
+
+## History
+
+The Electron original was deleted on 2026-07-27 once this surpassed it. Its
+history lived on an `electron-archive` branch sharing no commits with `master`
+— the rewrite replaced the repo wholesale rather than building on the old
+lineage. That branch has since been removed.
+
+## License
+
+Free to use. Not currently open-licensed for redistribution.
