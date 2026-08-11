@@ -89,7 +89,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.downloadStatus = nil
                 RuntimeLog.write("download failed: \(message)")
                 self.rebuildMenu(status: "⚠ Download failed — \(message)")
-                self.notify(title: "PushTalk download failed", body: message)
+                self.notify(title: "PushSense download failed", body: message)
 
             case .cancelled:
                 self.downloadStatus = nil
@@ -203,7 +203,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         img.isTemplate = true
         button.image = img
         if button.image == nil {
-            button.image = NSImage(systemSymbolName: "dot.circle", accessibilityDescription: "PushTalk")
+            button.image = NSImage(systemSymbolName: "dot.circle", accessibilityDescription: "PushSense")
             button.image?.isTemplate = true
         }
         button.imagePosition = .imageLeading
@@ -287,7 +287,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         modelFolder.target = self
         menu.addItem(modelFolder)
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Quit PushTalk", action: #selector(quit), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "Quit PushSense", action: #selector(quit), keyEquivalent: "q"))
         menu.items.last?.target = self
         statusItem.menu = menu
     }
@@ -515,7 +515,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openConfigFolder() {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!.appendingPathComponent("PushTalk", isDirectory: true)
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!.appendingPathComponent("PushSense", isDirectory: true)
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         NSWorkspace.shared.open(base)
     }

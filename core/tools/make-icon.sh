@@ -5,12 +5,12 @@
 # stays faithful to the live overlay. To restyle the icon, edit the tuning
 # constants at the bottom of icon-source.html (T / VOL / SCALE) and re-run this.
 #
-# Run make-app.sh afterwards to bake the new icon into PushTalk.app.
+# Run make-app.sh afterwards to bake the new icon into PushSense.app.
 set -e
 export DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
-OUT="$DIR/../Sources/pushtalk/Resources/AppIcon.icns"
+OUT="$DIR/../Sources/pushsense/Resources/AppIcon.icns"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 

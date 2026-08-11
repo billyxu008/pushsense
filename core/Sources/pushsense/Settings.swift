@@ -269,7 +269,7 @@ final class SettingsWindowController: NSWindowController {
             contentRect: NSRect(x: 0, y: 0, width: 420, height: 390),
             styleMask: [.titled, .closable], backing: .buffered, defer: false
         )
-        window.title = "PushTalk Settings"
+        window.title = "PushSense Settings"
         window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
         window.appearance = NSAppearance(named: .darkAqua)

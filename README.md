@@ -1,22 +1,28 @@
-# PushTalk
+# PushSense（感应）
 
 Push-to-talk dictation for macOS. Hold a key, speak, release — the text is
-typed into whatever field you're focused on.
+typed into whatever field you're focused on. **Mixes Chinese and English in
+the same sentence**, no language switch, no settings toggle.
 
 Everything runs on your machine. No cloud, no account, no API key.
 
-![status](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey)
-![status](https://img.shields.io/badge/build-from%20source-blue)
+![platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey)
+![build](https://img.shields.io/badge/build-from%20source-blue)
+![license](https://img.shields.io/badge/license-MIT-green)
+
+[中文说明](README_ZH.md)
 
 ## Why this exists
 
-I type a lot, and I wanted to talk to my editor instead. The tools I found were
-either subscription-priced or sent audio to a server. Speech I dictate all day
-is not something I want to hand to a third party, so I built one that doesn't
-leave the laptop.
+I type a lot, and I switch between Chinese and English mid-thought — "这个
+feature 的 latency 有点高" is a completely normal sentence for me. Every
+dictation tool I tried picks one language and mangles the other. Most also
+send audio to a server, and speech I dictate all day is not something I want
+to hand to a third party.
 
-The first version was Electron and shipped as a 230MB app. This is the Swift
-rewrite: **4.8MB installed, 2.2MB as a disk image**. Same feature set, no
+So: local, and it doesn't flinch at a language switch mid-sentence.
+
+Native Swift, **4.8MB installed, 2.2MB as a disk image** — no Electron, no
 Chromium.
 
 ## How it works
@@ -31,8 +37,12 @@ Four small pieces, one per step: `Hotkey.swift`, `Recorder.swift`,
 `Whisper.swift`, `Injector.swift`. It lives in the menu bar and shows a halo
 overlay while listening.
 
-**Features**
+## Features
 
+- **Mixed Chinese/English in one sentence** — Whisper transcribes code-switched
+  speech natively; output is forced to Simplified Chinese via the OS text
+  transform (`CFStringTransform`), so Traditional-vs-Simplified never bleeds
+  through while Latin text and emoji pass through untouched
 - Any hotkey, any microphone, any Whisper language
 - Speech models are downloaded by the app on first run, not baked into the
   bundle
@@ -52,13 +62,13 @@ Notarization needs a paid Apple Developer account, and I haven't bought one.
 So: build it yourself.
 
 ```bash
-git clone https://github.com/billyxu008/pushtalk-transcriber.git
-cd pushtalk-transcriber/core
+git clone https://github.com/billyxu008/pushsense.git
+cd pushsense/core
 bash make-app.sh
 ```
 
 Requires **full Xcode** — Command Line Tools alone cannot produce a `.app`.
-The result is `core/PushTalk.app`; drag it to `/Applications`.
+The result is `core/PushSense.app`; drag it to `/Applications`.
 
 On first launch macOS will ask for **Microphone** and **Accessibility**
 permission. Accessibility is what lets it type into other apps; without it the
@@ -78,13 +88,6 @@ The notes I'd have wanted before starting:
 - **Ad-hoc signing is worse than no signing** for anything you hand to another
   person.
 
-## History
-
-The Electron original was deleted on 2026-07-27 once this surpassed it. Its
-history lived on an `electron-archive` branch sharing no commits with `master`
-— the rewrite replaced the repo wholesale rather than building on the old
-lineage. That branch has since been removed.
-
 ## License
 
-Free to use. Not currently open-licensed for redistribution.
+[MIT](LICENSE)

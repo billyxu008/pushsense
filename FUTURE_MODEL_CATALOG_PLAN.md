@@ -2,13 +2,13 @@
 
 > Status: **Parked / do not implement yet**
 >
-> First priority is to use the current local PushTalk build in real work and
+> First priority is to use the current local PushSense build in real work and
 > collect concrete friction. Revisit this only when the product benefits from
 > sharing, model choice, or a better multilingual model.
 
 ## Product goal
 
-Someone should be able to install PushTalk from a DMG, grant the required
+Someone should be able to install PushSense from a DMG, grant the required
 macOS permissions, and use local dictation without installing Homebrew,
 Whisper, Python, or another transcription tool.
 
@@ -17,7 +17,7 @@ locally stored speech models from Settings.
 
 ## Intended user experience
 
-1. Install PushTalk from DMG.
+1. Install PushSense from DMG.
 2. Complete the guided permissions:
    - Microphone
    - Input Monitoring
@@ -31,7 +31,7 @@ locally stored speech models from Settings.
 ## Architecture direction
 
 ```text
-PushTalk.app
+PushSense.app
 ├── bundled transcription runtime
 │   └── whisper / ggml / libomp dylibs, signed inside Contents/Frameworks
 ├── TranscriptionEngine protocol
@@ -39,7 +39,7 @@ PushTalk.app
 │   └── future engine adapters (only through an App update)
 ├── Model catalog
 │   └── published model metadata: id, version, languages, size, URL, SHA-256
-└── ~/Library/Application Support/PushTalk/Models/
+└── ~/Library/Application Support/PushSense/Models/
     └── versioned, verified downloaded model files
 ```
 
@@ -50,7 +50,7 @@ PushTalk.app
   must not download arbitrary executable code.
 - A new model only works directly when it is compatible with an installed
   engine. A future MLX/Core ML/new-runtime model needs an engine adapter in a
-  normal PushTalk release first.
+  normal PushSense release first.
 
 ## Implementation phases when revisited
 
@@ -81,7 +81,7 @@ PushTalk.app
   compatible engine version, minimum macOS/hardware, quality/speed notes, and
   license status.
 - Add newer models through the catalog once the required engine support has
-  shipped in PushTalk.
+  shipped in PushSense.
 
 ## Verification bar
 

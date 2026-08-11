@@ -47,7 +47,7 @@ final class Recorder {
         let input = engine.inputNode
         if let deviceID {
             guard let audioUnit = input.audioUnit else {
-                throw NSError(domain: "PushTalk", code: 1, userInfo: [NSLocalizedDescriptionKey: "The audio input is unavailable."])
+                throw NSError(domain: "PushSense", code: 1, userInfo: [NSLocalizedDescriptionKey: "The audio input is unavailable."])
             }
             var selectedDevice = deviceID
             let status = AudioUnitSetProperty(

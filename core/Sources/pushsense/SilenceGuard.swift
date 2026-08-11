@@ -5,7 +5,7 @@ import Foundation
 /// Whisper's training data was full of YouTube captions, so over silence it
 /// confidently emits filler like "Thank you." or "谢谢观看". Typing that into the
 /// user's document is worse than typing nothing — it looks like the app is
-/// broken. PushTalk is in a stronger position than a file-based transcriber: it
+/// broken. PushSense is in a stronger position than a file-based transcriber: it
 /// owns the microphone, so it can measure the actual signal and refuse to
 /// transcribe silence in the first place.
 ///

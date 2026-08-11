@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build a distributable .dmg from PushTalk.app.
+# Build a distributable .dmg from PushSense.app.
 #
 # Works with or without an Apple Developer account:
 #   unsigned (default) — ad-hoc signed. Gatekeeper blocks it on first launch, so
@@ -15,10 +15,10 @@
 set -e
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
-APP="$DIR/PushTalk.app"
+APP="$DIR/PushSense.app"
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist" 2>/dev/null || echo 0.0.0)"
 STAGE="$DIR/.build/dmg-stage"
-DMG="$DIR/PushTalk-$VERSION.dmg"
+DMG="$DIR/PushSense-$VERSION.dmg"
 
 [ -d "$APP" ] || { echo "no $APP — run make-app.sh first" >&2; exit 1; }
 
@@ -32,17 +32,17 @@ ln -s /Applications "$STAGE/Applications"
 # a properly signed build opens with no warning and the note would confuse.
 if codesign -dvv "$APP" 2>&1 | grep -q "Signature=adhoc"; then
   cat > "$STAGE/READ ME FIRST.txt" <<'TXT'
-PushTalk — first launch
-=======================
+PushSense — first launch
+========================
 
-1. Drag PushTalk to the Applications folder.
+1. Drag PushSense to the Applications folder.
 
 2. IMPORTANT — the first time you open it:
-   Right-click (or Control-click) PushTalk in Applications and choose "Open".
+   Right-click (or Control-click) PushSense in Applications and choose "Open".
    Then click "Open" again in the dialog.
 
    Double-clicking will NOT work the first time. macOS shows
-   "Apple could not verify PushTalk is free of malware" because this
+   "Apple could not verify PushSense is free of malware" because this
    build is not notarized yet. Right-click → Open is the standard way
    to approve it. You only need to do this once.
 
@@ -52,7 +52,7 @@ PushTalk — first launch
    - Accessibility     — to type the text into the focused app
 
 4. Download a speech model:
-   Click the PushTalk icon in the menubar → Speech model → pick one.
+   Click the PushSense icon in the menubar → Speech model → pick one.
    "Large v3 Turbo" (1.6 GB) is recommended. It downloads once.
 
 5. Hold Right-Command (default), speak, release.
@@ -63,7 +63,7 @@ TXT
 fi
 
 echo "building $DMG …"
-hdiutil create -volname "PushTalk $VERSION" -srcfolder "$STAGE" \
+hdiutil create -volname "PushSense $VERSION" -srcfolder "$STAGE" \
   -ov -format UDZO -quiet "$DMG"
 
 rm -rf "$STAGE"

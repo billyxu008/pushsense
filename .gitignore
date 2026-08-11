@@ -2,12 +2,12 @@
 
 # SwiftPM build output and locally packaged application
 core/.build/
-core/PushTalk.app/
+core/PushSense.app/
 core/*.dmg
 whisper-probe/.build/
 
 # Local runtime diagnostics
-/tmp/pushtalk-runtime.log
+/tmp/pushsense-runtime.log
 
 # Code-graph tool output
 graphify-out/

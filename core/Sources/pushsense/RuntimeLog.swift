@@ -1,8 +1,8 @@
 import Foundation
 
 enum RuntimeLog {
-    static let path = "/tmp/pushtalk-runtime.log"
-    private static let queue = DispatchQueue(label: "pushtalk.runtime-log")
+    static let path = "/tmp/pushsense-runtime.log"
+    private static let queue = DispatchQueue(label: "pushsense.runtime-log")
 
     static func write(_ message: String) {
         queue.async {

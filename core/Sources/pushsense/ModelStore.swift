@@ -50,10 +50,10 @@ struct WhisperModel: Identifiable, Equatable {
 /// into Application Support on first run. That directory survives app updates,
 /// is per-user, needs no privileges, and is what `Open model folder` reveals.
 enum ModelStore {
-    /// ~/Library/Application Support/PushTalk/models
+    /// ~/Library/Application Support/PushSense/models
     static var directory: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        return base.appendingPathComponent("PushTalk/models", isDirectory: true)
+        return base.appendingPathComponent("PushSense/models", isDirectory: true)
     }
 
     static func ensureDirectory() throws {

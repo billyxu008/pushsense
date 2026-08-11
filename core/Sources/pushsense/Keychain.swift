@@ -6,7 +6,7 @@ import Security
 /// provider stores its own key under a distinct account, so the user can keep an
 /// OpenAI key and an Ollama Cloud key at the same time. set(nil/"") deletes it.
 enum Keychain {
-    private static let service = "com.billy.pushtalk"
+    private static let service = "com.billy.pushsense"
 
     static func setAPIKey(_ value: String?, account: String) {
         // Always delete first so we never accumulate duplicate items.

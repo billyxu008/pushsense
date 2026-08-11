@@ -7,12 +7,12 @@ let ggmlInclude = "/opt/homebrew/opt/ggml/include"
 let ggmlLib = "/opt/homebrew/opt/ggml/lib"
 
 let package = Package(
-    name: "pushtalk",
+    name: "pushsense",
     platforms: [.macOS(.v13)],
     targets: [
         .systemLibrary(name: "CWhisper", path: "Sources/CWhisper"),
         .executableTarget(
-            name: "pushtalk",
+            name: "pushsense",
             dependencies: ["CWhisper"],
             exclude: ["Resources"],
             cSettings: [

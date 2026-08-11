@@ -9,7 +9,7 @@ let window = NSWindow(
     backing: .buffered,
     defer: false
 )
-window.title = "PushTalk Key Probe"
+window.title = "PushSense Key Probe"
 let label = NSTextField(labelWithString: "Press and release the physical Right Option key")
 label.font = .systemFont(ofSize: 17, weight: .medium)
 label.alignment = .center

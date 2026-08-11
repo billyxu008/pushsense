@@ -1,5 +1,5 @@
 #!/bin/bash
-# Package the SwiftPM binary into a proper PushTalk.app bundle. No shell wrapper
+# Package the SwiftPM binary into a proper PushSense.app bundle. No shell wrapper
 # — the real binary IS the CFBundleExecutable, so macOS associates the process
 # with the bundle (required for the menubar item to appear). dylib paths are
 # baked in via rpath.
@@ -8,9 +8,9 @@ export DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 # No model is baked in or bundled. The app resolves it at runtime from
-# ~/Library/Application Support/PushTalk/models and downloads it on demand from
+# ~/Library/Application Support/PushSense/models and downloads it on demand from
 # the menubar (Speech model → Download). See ModelStore.swift.
-APP="$DIR/PushTalk.app"
+APP="$DIR/PushSense.app"
 MACOS="$APP/Contents/MacOS"
 RES="$APP/Contents/Resources"
 FRAMEWORKS="$APP/Contents/Frameworks"
@@ -39,14 +39,14 @@ swift build -c release 2>&1 | grep -viE "warning: building for|^\s+cd |builtin|X
 echo "assembling $APP …"
 rm -rf "$APP"
 mkdir -p "$MACOS" "$RES"
-cp "$DIR/.build/release/pushtalk" "$MACOS/PushTalk"
+cp "$DIR/.build/release/pushsense" "$MACOS/PushSense"
 
 # overlay UI (WebView loads this from the bundle Resources)
-cp "$DIR/Sources/pushtalk/Resources/overlay.html" "$RES/overlay.html"
+cp "$DIR/Sources/pushsense/Resources/overlay.html" "$RES/overlay.html"
 
 # app icon (Dock / Finder / Get Info). Regenerate from icon-source.html — it
 # reuses overlay.html's draw code so the icon matches the live overlay.
-cp "$DIR/Sources/pushtalk/Resources/AppIcon.icns" "$RES/AppIcon.icns"
+cp "$DIR/Sources/pushsense/Resources/AppIcon.icns" "$RES/AppIcon.icns"
 
 # ---- bundling dylibs -------------------------------------------------------
 # Copy the whisper/ggml/libomp dylibs into Contents/Frameworks and rewrite every
@@ -67,12 +67,12 @@ for src in "${BREW_LIBS[@]}"; do
 done
 
 # The executable looks for its libs next to itself via @executable_path.
-install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS/PushTalk" 2>/dev/null || true
+install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS/PushSense" 2>/dev/null || true
 
 # Rewrite the main binary's references from /opt/homebrew/... to @rpath/...
 for src in "${BREW_LIBS[@]}"; do
   base="$(basename "$src")"
-  install_name_tool -change "$src" "@rpath/$base" "$MACOS/PushTalk" 2>/dev/null || true
+  install_name_tool -change "$src" "@rpath/$base" "$MACOS/PushSense" 2>/dev/null || true
 done
 
 # Rewrite each bundled dylib: its own id, and its references to its siblings.
@@ -104,7 +104,7 @@ done
 # Fail loudly if anything still points outside the bundle — a silent miss here
 # means the app crashes on a machine without Homebrew, which is exactly the bug
 # this whole block exists to prevent.
-leaked=$(otool -L "$MACOS/PushTalk" "$FRAMEWORKS"/*.dylib "$FRAMEWORKS"/*.so 2>/dev/null | grep -E "^\s+/opt/homebrew" || true)
+leaked=$(otool -L "$MACOS/PushSense" "$FRAMEWORKS"/*.dylib "$FRAMEWORKS"/*.so 2>/dev/null | grep -E "^\s+/opt/homebrew" || true)
 if [ -n "$leaked" ]; then
   echo "ERROR: unbundled Homebrew references remain:" >&2
   echo "$leaked" >&2
@@ -116,18 +116,18 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>PushTalk</string>
-  <key>CFBundleDisplayName</key><string>PushTalk</string>
-  <key>CFBundleIdentifier</key><string>com.billy.pushtalk</string>
+  <key>CFBundleName</key><string>PushSense</string>
+  <key>CFBundleDisplayName</key><string>PushSense</string>
+  <key>CFBundleIdentifier</key><string>com.billy.pushsense</string>
   <key>CFBundleVersion</key><string>0.1.1</string>
   <key>CFBundleShortVersionString</key><string>0.1.1</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleExecutable</key><string>PushTalk</string>
+  <key>CFBundleExecutable</key><string>PushSense</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
   <key>NSMicrophoneUsageDescription</key>
-  <string>PushTalk records your voice while you hold Right-Option, then types the transcription into the focused app.</string>
+  <string>PushSense records your voice while you hold Right-Option, then types the transcription into the focused app.</string>
 </dict>
 </plist>
 PLIST
@@ -145,7 +145,7 @@ if [ -n "${PT_SIGN_ID:-}" ]; then
   echo "signing for distribution: $PT_SIGN_ID"
   # com.apple.security.cs.disable-library-validation lets the hardened runtime
   # load our own bundled dylibs, which are signed by us rather than Apple.
-  ENT="$DIR/.build/pushtalk.entitlements"
+  ENT="$DIR/.build/pushsense.entitlements"
   cat > "$ENT" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -161,7 +161,7 @@ PLIST
     codesign --force --timestamp --options runtime --sign "$PT_SIGN_ID" "$lib"
   done
   codesign --force --timestamp --options runtime --entitlements "$ENT" \
-    --identifier com.billy.pushtalk --sign "$PT_SIGN_ID" "$APP"
+    --identifier com.billy.pushsense --sign "$PT_SIGN_ID" "$APP"
   echo "verifying…"
   codesign --verify --strict --verbose=2 "$APP" 2>&1 | tail -2
 else
@@ -170,8 +170,8 @@ else
   for lib in "$FRAMEWORKS"/*.dylib "$FRAMEWORKS"/*.so; do
     codesign --force --sign - "$lib"
   done
-  codesign --force --sign - --identifier com.billy.pushtalk \
-    --requirements '=designated => identifier "com.billy.pushtalk"' "$APP"
+  codesign --force --sign - --identifier com.billy.pushsense \
+    --requirements '=designated => identifier "com.billy.pushsense"' "$APP"
 fi
 
 echo "done: $APP"

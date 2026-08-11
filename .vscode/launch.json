@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:PushTalkNative}/core",
+            "name": "Debug pushsense (core)",
+            "target": "pushsense",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug pushsense (core)"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:PushTalkNative}/core",
+            "name": "Release pushsense (core)",
+            "target": "pushsense",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release pushsense (core)"
+        }
+    ]
+}
