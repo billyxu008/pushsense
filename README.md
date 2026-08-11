@@ -6,6 +6,11 @@ the same sentence**, no language switch, no settings toggle.
 
 Everything runs on your machine. No cloud, no account, no API key.
 
+![PushSense typing a mixed Chinese/English sentence into TextEdit](docs/demo.gif)
+
+<sub>Holding Right-Option and saying "Hello, how's it going? How are you? 你好吗?" — one
+sentence, two languages, transcribed locally and typed straight into TextEdit.</sub>
+
 ![platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey)
 ![build](https://img.shields.io/badge/build-from%20source-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)

@@ -6,6 +6,11 @@ macOS 上的按键说话（push-to-talk）听写工具。按住一个键，说�
 
 完全本地运行。不联网、不需要账号、不需要 API key。
 
+![PushSense 把一句中英混说的话打进 TextEdit](docs/demo.gif)
+
+<sub>按住右 Option 说「Hello, how's it going? How are you? 你好吗?」——一句话两种语言，
+本地转写，直接打进 TextEdit。</sub>
+
 ![platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey)
 ![build](https://img.shields.io/badge/build-from%20source-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
