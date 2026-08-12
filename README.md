@@ -19,7 +19,7 @@ box, then TextEdit. Nothing here is a mockup.</sub>
 
 [中文说明](README_ZH.md)
 
-![What is shipped, what is wired up, and what is only planned](docs/how-it-fits.gif)
+![Setup, dictation, the AI pipeline, and the planned MCP work](docs/how-it-fits.gif)
 
 <sub>What you set up once, what ships today, what the pipeline already supports, and
 what is still only a plan. The last panel is dashed for a reason: there is no MCP code

@@ -19,7 +19,7 @@ friend who is coming in two weeks from China. 我朋友过两天会从中国过�
 
 [English](README.md)
 
-![已交付的、已接通的，以及还只是计划的](docs/how-it-fits.gif)
+![首次设置、听写、AI 管道，以及计划中的 MCP](docs/how-it-fits.gif)
 
 <sub>第一次要设置的、今天已经能用的、管道已经接通的，以及还只停留在计划里的。
 最后一块用虚线是有原因的：这个仓库里目前还没有任何 MCP 代码。</sub>
