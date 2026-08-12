@@ -6,16 +6,24 @@ the same sentence**, no language switch, no settings toggle.
 
 Everything runs on your machine. No cloud, no account, no API key.
 
-![PushSense typing a mixed Chinese/English sentence into TextEdit](docs/demo.gif)
+![PushSense dictating into Claude, Google and TextEdit](docs/demo-apps.gif)
 
-<sub>Holding Right-Option and saying "Hello, how's it going? How are you? 你好吗?" — one
-sentence, two languages, transcribed locally and typed straight into TextEdit.</sub>
+<sub>Three real screen recordings, end to end. Into Claude: "Hey Claude, help me write
+an email to my friend who is coming in two weeks from China. 我朋友过两天会从中国过来,
+告诉他我会在家里等他。" — one sentence, two languages, no toggle. Then a Google search
+box, then TextEdit. Nothing here is a mockup.</sub>
 
 ![platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey)
 ![build](https://img.shields.io/badge/build-from%20source-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
 [中文说明](README_ZH.md)
+
+![What is shipped, what is wired up, and what is only planned](docs/how-it-fits.gif)
+
+<sub>What exists today, what the pipeline already supports, and what is still just a
+plan. The third panel is dashed for a reason: there is no MCP code in this repository
+yet.</sub>
 
 ## Why this exists
 
@@ -96,3 +104,7 @@ The notes I'd have wanted before starting:
 ## License
 
 [MIT](LICENSE)
+
+---
+
+Write-up, setup guide and demos: **[billyxu-dev.vercel.app/pushsense.html](https://billyxu-dev.vercel.app/pushsense.html)**

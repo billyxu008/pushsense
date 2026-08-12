@@ -6,16 +6,23 @@ macOS 上的按键说话（push-to-talk）听写工具。按住一个键，说�
 
 完全本地运行。不联网、不需要账号、不需要 API key。
 
-![PushSense 把一句中英混说的话打进 TextEdit](docs/demo.gif)
+![PushSense 在 Claude、Google 和 TextEdit 里听写](docs/demo-apps.gif)
 
-<sub>按住右 Option 说「Hello, how's it going? How are you? 你好吗?」——一句话两种语言，
-本地转写，直接打进 TextEdit。</sub>
+<sub>三段真实录屏，一镜到底。在 Claude 里说：「Hey Claude, help me write an email to my
+friend who is coming in two weeks from China. 我朋友过两天会从中国过来，告诉他我会在家里
+等他。」——一句话，两种语言，不需要切换。然后是 Google 搜索框，然后是 TextEdit。
+没有一帧是演示动画。</sub>
 
 ![platform](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey)
 ![build](https://img.shields.io/badge/build-from%20source-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
 [English](README.md)
+
+![已交付的、已接通的，以及还只是计划的](docs/how-it-fits.gif)
+
+<sub>今天已经能用的、管道已经接通的，以及还只停留在计划里的。第三块用虚线是有原因的：
+这个仓库里目前还没有任何 MCP 代码。</sub>
 
 ## 为什么做这个
 
@@ -88,3 +95,7 @@ bash make-app.sh
 ## License
 
 [MIT](LICENSE)
+
+---
+
+更多说明、教程和演示：**[billyxu-dev.vercel.app/pushsense.zh.html](https://billyxu-dev.vercel.app/pushsense.zh.html)**
