@@ -21,9 +21,9 @@ box, then TextEdit. Nothing here is a mockup.</sub>
 
 ![What is shipped, what is wired up, and what is only planned](docs/how-it-fits.gif)
 
-<sub>What exists today, what the pipeline already supports, and what is still just a
-plan. The third panel is dashed for a reason: there is no MCP code in this repository
-yet.</sub>
+<sub>What you set up once, what ships today, what the pipeline already supports, and
+what is still only a plan. The last panel is dashed for a reason: there is no MCP code
+in this repository yet.</sub>
 
 ## Why this exists
 
